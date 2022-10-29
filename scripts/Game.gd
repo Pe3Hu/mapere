@@ -14,12 +14,16 @@ func _input(event):
 	if event is InputEventMouseButton:
 		if Global.flag.click:
 			Global.flag.click = !Global.flag.click
-			Global.obj.terrain.next_layer()
 		else:
 			Global.flag.click = !Global.flag.click
 
 func _on_Timer_timeout():
-	Global.node.TimeBar.value +=1
+	Global.node.TimeBar.value += 1
+	
+	if Global.obj.map.flag.ready:
+		for bastion in Global.obj.map.arr.bastion:
+			bastion.refill_hand()
+			bastion.use_hand()
 	
 	if Global.node.TimeBar.value >= Global.node.TimeBar.max_value:
 		Global.node.TimeBar.value -= Global.node.TimeBar.max_value

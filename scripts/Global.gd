@@ -14,23 +14,38 @@ var vec = {}
 func init_num():
 	init_primary_key()
 	
+	num.map = {}
+	num.map.rings = 24
+	num.map.sectors = 3
+	num.map.boundary = 3
+	num.map.a = 10
+	num.map.h = 2*num.map.a
+	num.map.w = sqrt(3)*num.map.a
+	
 	num.dot = {}
-	num.dot.n = 5
+	num.dot.n = num.map.rings*2-1
 	num.dot.rows = 4+(num.dot.n-1)*2
 	num.dot.cols = 1+num.dot.n
 	
-	num.map = {}
-	num.map.a = 48
-	num.map.h = 2*num.map.a
-	num.map.w = sqrt(3)*num.map.a
+	num.deck = {}
+	num.deck.size = 12
+	num.deck.refill = 1#num.deck.size/2
 
 func init_primary_key():
 	num.primary_key = {}
 	num.primary_key.dot = 0
 	num.primary_key.hex = 0
+	num.primary_key.bastion = 0
 
 func init_dict():
-	dict.null = {}
+	dict.deck = {}
+#	dict.deck.base = {
+#		"Trigger": 1,
+#		"Blank": num.deck.size-dict.deck.base["Trigger"]
+#	}
+	dict.deck.base = {}
+	dict.deck.base["Trigger"] = 1
+	dict.deck.base["Blank"] = num.deck.size-dict.deck.base["Trigger"]
 
 func init_arr():
 	arr.sequence = {} 
@@ -43,18 +58,18 @@ func init_arr():
 		[
 			Vector2( 1,-1), 
 			Vector2( 1, 0), 
+			Vector2( 1, 1), 
 			Vector2( 0, 1), 
-			Vector2(-1, 0), 
-			Vector2(-1,-1),
+			Vector2(-1, 0),
 			Vector2( 0,-1)
 		],
 		[
+			Vector2( 0,-1),
 			Vector2( 1, 0),
-			Vector2( 1, 1),
 			Vector2( 0, 1),
 			Vector2(-1, 1),
 			Vector2(-1, 0),
-			Vector2( 0,-1)
+			Vector2(-1,-1)
 		]
 	]
 	
