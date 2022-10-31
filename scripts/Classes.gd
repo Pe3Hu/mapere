@@ -40,8 +40,6 @@ class Hex:
 		arr.point = []
 		arr.neighbor = []
 		dict.challenger = {}
-		#arr.parent = []
-		#arr.child = []
 		flag.visiable = false
 		flag.capital = false
 		obj.map = input_.map
@@ -212,7 +210,6 @@ class Bastion:
 		var value = floor(sqrt(num.charge))
 		#self hex fix
 		value += 1
-		#value += arr.hex.size()
 		
 		Global.rng.randomize()
 		var index_r = Global.rng.randi_range(0, Global.arr.neighbor[obj.hex.num.parity].size() - 1)
@@ -246,7 +243,6 @@ class Bastion:
 							index_r = get_deviation(index_r)
 							var direction = Global.arr.neighbor[parity][index_r]
 							grid += direction 
-							
 							var border = false
 							
 							if !obj.map.check_border(grid):
@@ -272,7 +268,6 @@ class Bastion:
 						"Damage":
 							direction_hex.recolor("Hp")
 							direction_hex.contribute_damage(self, value)
-		
 		
 		num.charge = 0
 
@@ -316,32 +311,6 @@ class Bastion:
 			
 			if flag:
 				chains.append([borderland])
-		
-#		if value > incloseds.size():
-#			borderlands.shuffle()
-#			var first = borderlands.pop_back()
-#			ordered.append(first)
-#			var second = null
-#
-#			for neighbor in first.arr.neighbor:
-#				if borderlands.has(neighbor):
-#					second = neighbor
-#
-#			if second != null:
-#				borderlands.erase(second)
-#				ordered.append(second)
-#			else:
-#				pint("second WTF bug")
-#			var counter = borderlands.size()
-#
-#			while borderlands.size() > 0 && value > ordered.size() && counter > 0:
-#				counter -= 1
-#				var next = ordered.back()
-#
-#				for neighbor in next.arr.neighbor:
-#					if borderlands.has(neighbor):
-#						borderlands.erase(neighbor)
-#						ordered.append(neighbor)
 		
 		for _i in range(chains.size()-1,-1-1):
 			var chain = chains[_i]
@@ -442,7 +411,6 @@ class Bastion:
 		
 		Global.rng.randomize()
 		var index_r = Global.rng.randi_range(0, options.size() - 1)
-		#pint(old_index_,options,options[index_r])
 		return options[index_r]
 
 	func update_connects():
@@ -470,8 +438,6 @@ class Bastion:
 			
 			_i += 1
 		
-		#if unconnecteds.size() > 0:
-		#	pint(unconnecteds.size(),self,connecteds.size())
 		for unconnected in unconnecteds:
 			unconnected.reset()
 			arr.hex.erase(unconnected)
