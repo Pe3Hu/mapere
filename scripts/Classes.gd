@@ -20,6 +20,7 @@ class Hex:
 	var num = {}
 	var vec = {}
 	var arr = {}
+	var dict = {}
 	var flag = {}
 	var color = {}
 	var obj = {}
@@ -28,6 +29,7 @@ class Hex:
 		num.index = Global.num.primary_key.hex
 		Global.num.primary_key.hex += 1
 		vec.grid = input_.grid
+		vec.center = Vector2()
 		num.parity = int(vec.grid.y)%2
 		num.ring = -1
 		num.sector = -1
@@ -37,24 +39,45 @@ class Hex:
 		arr.dot = input_.dots
 		arr.point = []
 		arr.neighbor = []
+		dict.challenger = {}
 		#arr.parent = []
 		#arr.child = []
-		obj.map = input_.map
 		flag.visiable = false
-		obj.bastion = null
 		flag.capital = false
+		obj.map = input_.map
+		obj.bastion = null
 		recolor("Default")
 		
 		for dot in arr.dot:
 			arr.point.append(dot.vec.pos)
+			vec.center += dot.vec.pos/arr.dot.size()
 
-	func get_damage(bastion_, value_):
-		if value_ > num.hp.current:
-			value_ = value_ - num.hp.current
+	func contribute_damage(bastion_, value_):
+		if dict.challenger.keys().has(bastion_):
+			dict.challenger[bastion_] += value_
+		else:
+			dict.challenger[bastion_] = value_
+
+	func embody_damage():
+		var conqueror = {}
+		conqueror.value = -1
+		conqueror.bastion = null
+		
+		for challenger in dict.challenger.keys():
+			if obj.map.arr.bastion.has(challenger) && dict.challenger[challenger] > conqueror.value:
+				conqueror.value = dict.challenger[challenger]
+				conqueror.bastion = challenger
+		
+		dict.challenger = {}
+		get_damage(conqueror)
+
+	func get_damage(conqueror_):
+		if conqueror_.value > num.hp.current:
+			conqueror_.value = conqueror_.value - num.hp.current
 			num.hp.current = 0
 		else:
-			num.hp.current -= value_
-			value_ = 0
+			num.hp.current -= conqueror_.value
+			conqueror_.value = 0
 		
 		if num.hp.current <= 0:
 			num.hp.current = num.hp.max
@@ -65,14 +88,13 @@ class Hex:
 				else:
 					obj.bastion.arr.hex.erase(self)
 					#obj.bastion.check_continuity([self],0)
-					obj.bastion.update_connects()
 				
-			obj.bastion = bastion_
+			obj.bastion = conqueror_.bastion
 			obj.bastion.arr.hex.append(self)
 			#parent_.arr.child.append(self)
 			recolor("Bastions")
 		
-		return value_
+		#return conqueror_.value
 
 	func get_heal(value_):
 		var heal = min(num.hp.max-num.hp.current,value_)
@@ -103,6 +125,10 @@ class Hex:
 					if obj.bastion.num.index != -1:
 						h = float(obj.bastion.num.index)/Global.num.primary_key.bastion
 						color.current = Color().from_hsv(h, 1.0, v)
+
+	func reset():
+		obj.bastion = null
+		recolor("Default")
 
 class Card:
 	var num = {}
@@ -174,6 +200,7 @@ class Bastion:
 			arr.deck.append(arr.discard.pop_back())
 		
 		arr.deck.shuffle()
+		launch_expanse()
 
 	func use_hand():
 		while arr.hand.size() > 0:
@@ -185,11 +212,12 @@ class Bastion:
 		var value = floor(sqrt(num.charge))
 		#self hex fix
 		value += 1
-		value += arr.hex.size()
+		#value += arr.hex.size()
 		
 		Global.rng.randomize()
 		var index_r = Global.rng.randi_range(0, Global.arr.neighbor[obj.hex.num.parity].size() - 1)
 		var grid = obj.hex.vec.grid
+		#pls fix this bug 1
 		var counter = 0
 		
 		while value > 0 && counter < 100:
@@ -232,21 +260,154 @@ class Bastion:
 							if border:
 								grid -= direction 
 								var new_index = get_after_border_direction(direction_hex, index_r)
-								print("old",index_r)
-								print("new",new_index)
+								#pint("old",index_r)
+								#pint("new",new_index)
 								index_r = new_index
 								direction = Global.arr.neighbor[parity][new_index]
 								grid += direction 
 								
-							value -= 1
+							#value -= 1
 						"Heal":
-							value = direction_hex.get_heal(value)
+							direction_hex.get_heal(value)
 						"Damage":
 							direction_hex.recolor("Hp")
-							value = direction_hex.get_damage(self,value)
-				
+							direction_hex.contribute_damage(self, value)
+		
 		
 		num.charge = 0
+
+	func launch_expanse():
+		if obj.map.arr.bastion.size() > 1:
+			var ordered = get_borderlands()
+			tick_borderlands(ordered)
+
+	func get_borderlands():
+		var borderlands = []
+		var incloseds = []
+		var ordered = []
+		var chains = [[]]
+		
+		for hex in arr.hex:
+			for neighbor in hex.arr.neighbor:
+				if neighbor.obj.bastion != self && !borderlands.has(neighbor):
+					borderlands.append(neighbor)
+		
+		for borderland in borderlands:
+			var flag = true
+			
+			for neighbor in borderland.arr.neighbor:
+				flag = flag && neighbor.obj.bastion == self
+			
+			if flag:
+				incloseds.append(borderland)
+				borderlands.erase(borderland)
+		
+		ordered.append_array(incloseds)
+		var value = floor(sqrt(arr.hex.size()))
+		
+		for borderland in borderlands:
+			var flag = true
+			
+			for chain in chains:
+				for hex in chain:
+					if hex.arr.neighbor.has(borderland) && !chain.has(borderland):
+						chain.append(borderland)
+						flag = false
+			
+			if flag:
+				chains.append([borderland])
+		
+#		if value > incloseds.size():
+#			borderlands.shuffle()
+#			var first = borderlands.pop_back()
+#			ordered.append(first)
+#			var second = null
+#
+#			for neighbor in first.arr.neighbor:
+#				if borderlands.has(neighbor):
+#					second = neighbor
+#
+#			if second != null:
+#				borderlands.erase(second)
+#				ordered.append(second)
+#			else:
+#				pint("second WTF bug")
+#			var counter = borderlands.size()
+#
+#			while borderlands.size() > 0 && value > ordered.size() && counter > 0:
+#				counter -= 1
+#				var next = ordered.back()
+#
+#				for neighbor in next.arr.neighbor:
+#					if borderlands.has(neighbor):
+#						borderlands.erase(neighbor)
+#						ordered.append(neighbor)
+		
+		for _i in range(chains.size()-1,-1-1):
+			var chain = chains[_i]
+			var flag = true
+			
+			for hex in chain:
+				for neighbor in hex.arr.neighbor:
+					if !chain.has(neighbor):
+						if neighbor.obj.bastion != self && neighbor.flag.visiable:
+							flag = false
+			
+			if flag:
+				ordered.append_array(chain)
+				chains.erase(chain)
+		
+		var threats = find_capital_threats(chains)
+		ordered.append_array(threats)
+		return ordered
+
+	func calc_centroidal():
+		var vec = Vector2()
+		
+		for hex in arr.hex:
+			vec += hex.vec.center/arr.hex.size()
+		
+		return vec
+
+	func find_nearest_capital():
+		var centroidal = calc_centroidal()
+		var dists = []
+		
+		for bastion in obj.map.arr.bastion:
+			if bastion != self:
+				var dist = {}
+				dist.value = bastion.obj.hex.vec.center.distance_to(centroidal)
+				dist.bastion = bastion
+				dists.append(dist)
+		
+		dists.sort_custom(Classes.Sorter, "sort_ascending")
+		return dists
+
+	func find_capital_threats(chains_):
+		var ordered = []
+		var threats = []
+		var bastions = find_nearest_capital()
+		
+		for chain in chains_:
+			for hex in chain:
+				var threat = {}
+				threat.value = hex.vec.center.distance_to(bastions[0].bastion.obj.hex.vec.center)
+				threat.hex = hex
+				threats.append(threat)
+				
+		threats.sort_custom(Classes.Sorter, "sort_ascending")
+		
+		for threat in threats:
+			ordered.append(threat.hex)
+			
+		return ordered
+
+	func tick_borderlands(ordered_):
+		var value = floor(sqrt(arr.hex.size()))
+		
+		for _i in value:
+			var hex = ordered_.pop_front()
+			hex.contribute_damage(self, value)
 
 	func get_deviation(old_index_):
 		var options = []
@@ -281,30 +442,12 @@ class Bastion:
 		
 		Global.rng.randomize()
 		var index_r = Global.rng.randi_range(0, options.size() - 1)
-		print(old_index_,options,options[index_r])
+		#pint(old_index_,options,options[index_r])
 		return options[index_r]
-
-	func check_continuity(loss_,counter_):
-#		var new_loss = []
-#
-#		for loss in loss_:
-#			get_loss(loss)
-#
-#		for loss in loss_:
-#			for child in loss.arr.child:
-#				if child.arr.parent.size() == 0:
-#					new_loss.append(child)
-#
-#		if new_loss == loss_:
-#			return
-#		else:
-#			if new_loss.size() > 0:
-#				check_continuity(new_loss,counter_+1)
-		pass
 
 	func update_connects():
 		var unconnecteds = []
-		var connecteds = [obj.hex]
+		var connecteds = [[obj.hex]]
 		
 		for hex in arr.hex:
 			unconnecteds.append(hex)
@@ -312,34 +455,32 @@ class Bastion:
 		unconnecteds.erase(obj.hex)
 		
 		var flag = true
+		var _i = 0
 		
 		while flag:
 			flag = false
+			connecteds.append([])
 			
-			for connected in connecteds:
+			for connected in connecteds[_i]:
 				for neighbor in connected.arr.neighbor:
 					if unconnecteds.has(neighbor):
-						connecteds.append(neighbor)
+						connecteds[_i+1].append(neighbor)
 						unconnecteds.erase(neighbor)
 						flag = true
+			
+			_i += 1
 		
+		#if unconnecteds.size() > 0:
+		#	pint(unconnecteds.size(),self,connecteds.size())
 		for unconnected in unconnecteds:
-			get_loss(unconnected)
-
-	func get_loss(loss_):
-#		for child in loss_.arr.child:
-#			child.arr.parent.erase(loss_)
-		
-		arr.hex.erase(loss_)
-		loss_.obj.bastion = null
-		loss_.recolor("Default")
+			unconnected.reset()
+			arr.hex.erase(unconnected)
 
 	func die():
 		obj.hex.flag.capital = false
 		
 		for hex in arr.hex:
-			obj.hex.obj.bastion = null
-			hex.recolor("Default")
+			hex.reset()
 		
 		obj.map.arr.bastion.erase(self)
 
@@ -444,7 +585,7 @@ class Map:
 		center.num.ring = 0
 		center.flag.visiable = true
 		
-		for _i in Global.num.map.rings-1:
+		for _i in Global.num.map.rings-2:
 			var next_ring = []
 			
 			for _j in range(arounds[_i].size()-1,-1,-1):
@@ -460,7 +601,7 @@ class Map:
 		var hex_counters = []
 		var sum = 0
 		
-		for _i in Global.num.map.rings:
+		for _i in Global.num.map.rings-1:
 			hex_counters.append(0)
 		
 		for hexs in arr.hex:
@@ -518,7 +659,7 @@ class Map:
 				if sectors.has(hex.num.sector):
 					options.append(hex)
 		
-		while options.size() > 1:
+		while options.size() > 0:
 			Global.rng.randomize()
 			var index_r = Global.rng.randi_range(0, options.size() - 1)
 			var input = {}
@@ -542,6 +683,17 @@ class Map:
 			
 		for bastion in arr.bastion:
 			bastion.obj.hex.recolor("Bastions")
+
+	func embody_hexs():
+		for hexs in arr.hex:
+			for hex in hexs:
+				if hex.dict.challenger.keys().size() > 0:
+					hex.embody_damage()
+			
+		for bastion in arr.bastion:
+			bastion.update_connects()
+		if arr.bastion.size() == 1:
+			flag.ready = false
 
 	func recolor_hexs():
 		for hexs in arr.hex:

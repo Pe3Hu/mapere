@@ -26,4 +26,7 @@ func _on_Timer_timeout():
 			bastion.use_hand()
 	
 	if Global.node.TimeBar.value >= Global.node.TimeBar.max_value:
+		if Global.obj.map.flag.ready:
+			 Global.obj.map.embody_hexs()
+		
 		Global.node.TimeBar.value -= Global.node.TimeBar.max_value

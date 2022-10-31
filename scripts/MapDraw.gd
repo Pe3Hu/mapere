@@ -11,6 +11,8 @@ func _draw():
 		for hex in hexs:
 			if hex.flag.visiable:
 				draw_polygon(hex.arr.point, PoolColorArray([hex.color.current]))
+				if hex.flag.capital:
+					draw_circle(hex.vec.center, Global.num.map.a/2, Color(0.0, 0.0, 0.0))
 	
 	#draw_circle(Global.vec.window_size.center, 3, Color(1.0, 1.0, 1.0))
 	pass
