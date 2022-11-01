@@ -34,8 +34,11 @@ class Hex:
 		num.ring = -1
 		num.sector = -1
 		num.hp = {}
-		num.hp.max = 10
-		num.hp.current = num.hp.max
+		num.level = {}
+		num.level.current = 0
+		num.level.base = 9
+		num.level.degree = 2
+		rise_level()
 		arr.dot = input_.dots
 		arr.point = []
 		arr.neighbor = []
@@ -78,7 +81,8 @@ class Hex:
 			conqueror_.value = 0
 		
 		if num.hp.current <= 0:
-			num.hp.current = num.hp.max
+			conqueror_.bastion.get_experience(num.level.current)
+			rise_level()
 			
 			if obj.bastion != null:
 				if flag.capital:
@@ -91,6 +95,8 @@ class Hex:
 			obj.bastion.arr.hex.append(self)
 			#parent_.arr.child.append(self)
 			recolor("Bastions")
+		else:
+			recolor("Hp")
 		
 		#return conqueror_.value
 
@@ -128,6 +134,11 @@ class Hex:
 		obj.bastion = null
 		recolor("Default")
 
+	func rise_level():
+		num.level.current += 1
+		num.hp.max = pow((num.level.base+num.level.current),num.level.degree)
+		num.hp.current = num.hp.max
+
 class Card:
 	var num = {}
 	var word = {}
@@ -135,21 +146,101 @@ class Card:
 
 	func _init(input_):
 		word.type = input_.type
-		num.value = input_.value
+		word.element = "None"
+		num.denomination = input_.denomination
 		obj.bastion = input_.deck
+		num.level = {}
+		num.level.current = 0
+		num.experience = {}
+		num.experience.current = 0
+		num.experience.max = 1
+		num.shift = {}
+		num.shift.current = 0
+		num.shift.max = 3
 
 	func use():
 		match word.type:
 			"Trigger":
-				if obj.bastion.num.charge > 0:
+				if obj.bastion.check_charge_value():
 					obj.bastion.launch_charge()
 			"Blank":
-				obj.bastion.num.charge += num.value
+				obj.bastion.num.fuel += num.denomination
+
+#	func get_experience(experience_):
+#		num.experience.current += experience_
+#
+#		if num.experience.current >= num.experience.max:
+#			rise_level()
+#
+#	func rise_level():
+#		num.level.current += 1
+#		num.experience.current -= num.experience.max
+#		num.experience.max = num.level.current+1
+		pass
+
+	func upgrade():
+		var types = ["Denomination","Shift","Element"]
+		var copys = [4,2,1]
+		var options = []
+		
+		for _i in types.size():
+			if types[_i] != "Element" || (types[_i] == "Element" && word.element == "None"):
+				for _j in copys[_i]:
+					options.append(types[_i])
+		
+		Global.rng.randomize()
+		var index_r = Global.rng.randi_range(0, options.size() - 1)
+		
+		match options[index_r]:
+			"Denomination":
+				var bonus = 1
+				num.denomination += bonus
+			"Shift":
+				var bonus = 1
+				num.shift.current += bonus
+				
+				while num.shift.current > num.shift.max:
+					num.shift.current -= num.shift.max
+					num.denomination += 1
+			"Element":
+				options = []
+				var elements = {}
+				var base = 2
+				
+				for element in Global.arr.element:
+					elements[element] = 0
+				
+				elements[Global.arr.element[obj.bastion.num.element]] += 1
+				
+				for card in obj.bastion.arr.card:
+					if elements.keys().has(card.word.type):
+						elements[card.word.type] += 1
+				
+				for element in elements.keys():
+					for _i in pow(base, elements[element]):
+						options.append(element)
+						
+				Global.rng.randomize()
+				index_r = Global.rng.randi_range(0, options.size() - 1)
+				word.type = options[index_r]
+
+class Cannon:
+	var num = {}
+	var word = {}
+	var obj = {}
+
+	func _init(input_):
+		word.type = input_.type
+		obj.bastion = input_.bastion
+		num.level = {}
+		num.level.current = 0
 
 class Bastion:
 	var num = {}
 	var arr = {}
+	var flag = {}
 	var obj = {}
+	var node = {}
 
 	func _init(input_):
 		num.index = Global.num.primary_key.bastion
@@ -159,25 +250,52 @@ class Bastion:
 		obj.hex.flag.capital = true
 		obj.map = obj.hex.obj.map
 		arr.hex = [obj.hex]
-		num.charge = 0
+		num.fuel = 0
 		num.refill = {}
 		num.refill.card = Global.num.deck.refill
+		num.experience = {}
+		num.experience.current = 0
+		num.experience.max = 1
+		num.level = {}
+		num.level.current = 0
+		num.element = num.index*Global.arr.element.size()/Global.num.primary_key.bastion
 		init_deck()
+		
+		node.level = Label.new()
+		node.level.set("custom_fonts/font", load("res://assets/ELEPHNT.TTF"))
+		node.level.set("custom_colors/font_color", Color(1,1,1))
+		node.level.text = str(num.index)
+		Global.node.BastionLevel.add_child(node.level)
+		
+		node.charge = Label.new()
+		node.charge.set("custom_fonts/font", load("res://assets/ELEPHNT.TTF"))
+		node.charge.set("custom_colors/font_color", Color(1,1,1))
+		node.charge.text = "# "+str(num.index)
+		
+		if num.index < 10:
+			node.charge.text += " "
+		
+		node.charge.text += ": " + str(num.fuel)
+		Global.node.BastionCharge.add_child(node.charge)
 
 	func init_deck():
 		arr.deck = []
 		arr.hand = []
 		arr.discard = []
 		arr.exile = []
+		arr.card = []
 		
 		for key in Global.dict.deck.base.keys():
 			for _i in Global.dict.deck.base[key]:
 				var input = {}
 				input.type = key
-				input.value = 1
+				input.denomination = 1
 				input.deck = self
 				var card = Classes.Card.new(input)
-				arr.deck.append(card)
+				arr.card.append(card)
+		
+		for card in arr.card:
+			arr.deck.append(card)
 		
 		arr.deck.shuffle()
 
@@ -207,18 +325,15 @@ class Bastion:
 			arr.discard.append(card)
 
 	func launch_charge():
-		var value = floor(sqrt(num.charge))
-		#self hex fix
-		value += 1
-		
 		Global.rng.randomize()
 		var index_r = Global.rng.randi_range(0, Global.arr.neighbor[obj.hex.num.parity].size() - 1)
 		var grid = obj.hex.vec.grid
 		#pls fix this bug 1
 		var counter = 0
 		
-		while value > 0 && counter < 100:
+		while num.charge > 0 && counter < 100:
 			counter += 1
+			
 			if obj.map.check_border(grid):
 				var direction_hex = obj.map.arr.hex[grid.y][grid.x]
 				
@@ -264,12 +379,28 @@ class Bastion:
 								
 							#value -= 1
 						"Heal":
-							direction_hex.get_heal(value)
+							direction_hex.get_heal(num.charge)
 						"Damage":
-							direction_hex.recolor("Hp")
-							direction_hex.contribute_damage(self, value)
+							direction_hex.contribute_damage(self, num.charge)
 		
+		num.fuel = 0
 		num.charge = 0
+
+	func check_charge_value():
+		var min_value = Global.dict.sphenic_number.keys[0]
+		var flag = Global.dict.sphenic_number.keys.has(num.fuel) && num.fuel >= min_value
+		
+		if !flag:
+			num.fuel /= 2 
+		else:
+			var b = num.fuel
+			var a = Global.dict.sphenic_number.full[num.fuel]
+			num.charge = Global.dict.sphenic_number.full[num.fuel].back().mult
+		
+			#self hex fix
+			num.charge += 1
+		
+		return flag
 
 	func launch_expanse():
 		if obj.map.arr.bastion.size() > 1:
@@ -442,13 +573,60 @@ class Bastion:
 			unconnected.reset()
 			arr.hex.erase(unconnected)
 
+	func get_experience(experience_):
+		num.experience.current += experience_
+		
+		if num.experience.current >= num.experience.max:
+			rise_level()
+
+	func rise_level():
+		num.experience.current -= num.experience.max
+		num.level.current += 1
+		num.experience.max = pow(num.level.current+1,2)
+		
+		choose_upgrade()
+
+	func choose_upgrade():
+		if num.level.current%2:
+			if arr.discard.size() > 0:
+				var card = null
+				
+				for card_ in arr.discard:
+					if card_.word.type == "Blank":
+						card = card_
+				
+				if card != null:
+					card.upgrade()
+				else:
+					print("error 2 upgrade card:no Blank in discard")
+			else:
+				print("error 1 upgrade card: discard size == 0")
+		else:
+			upgrade_cannon()
+
+	func upgrade_cannon():
+		match num.level.current:
+			"2":
+				pass
+
 	func die():
 		obj.hex.flag.capital = false
 		
 		for hex in arr.hex:
 			hex.reset()
 		
-		obj.map.arr.bastion.erase(self)
+		for child in Global.node.BastionLevel.get_children():
+			if child == node.level: 
+				child.queue_free()
+				
+		for child in Global.node.BastionCharge.get_children():
+			if child == node.charge: 
+				child.queue_free()
+		#node.level.get_children().queue_free()
+		#node.charge.get_children().queue_free()
+		#Global.node.BastionLevel.remove_child(node.level)
+		#Global.node.BastionCharge.remove_child(node.charge)
+		Global.obj.map.arr.bastion.erase(self)
 
 class Map:
 	var arr = {}
@@ -683,3 +861,10 @@ class Sorter:
 		if a.value > b.value:
 			return true
 		return false
+
+	static func sort_subarray_ascending(a, b):
+		var flag = true
+		
+		for _i in a.values.size():
+			flag = flag && a.values[_i] <= b.values[_i]
+		return flag

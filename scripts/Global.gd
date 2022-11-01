@@ -4,8 +4,8 @@ extends Node
 var rng = RandomNumberGenerator.new()
 var noise = OpenSimplexNoise.new()
 var num = {}
-var dict = {}
 var arr = {}
+var dict = {}
 var obj = {}
 var node = {}
 var flag = {}
@@ -29,7 +29,7 @@ func init_num():
 	
 	num.deck = {}
 	num.deck.size = 12
-	num.deck.refill = 1#num.deck.size/2
+	num.deck.refill = num.deck.size/3
 
 func init_primary_key():
 	num.primary_key = {}
@@ -46,13 +46,44 @@ func init_dict():
 	dict.deck.base = {}
 	dict.deck.base["Trigger"] = 1
 	dict.deck.base["Blank"] = num.deck.size-dict.deck.base["Trigger"]
+	
+	dict.sphenic_number = {}
+	calc_sphenic_numbers()
+	#rint(dict.sphenic_number)
+#	var file_path = "res://jsons/"
+#	var file_name = "sphenic_number"
+#	dict.sphenic_number = load_json(file_path,file_name)
+	
+	dict.sphenic_number.keys = []
+	
+	for key in dict.sphenic_number.full.keys():
+		dict.sphenic_number.keys.append(int(key))
+	
+	dict.sphenic_number.keys.sort()
+	
+	for key in dict.sphenic_number.keys:
+		var flag = false
+		
+		for obj in dict.sphenic_number.full[key]:
+			if obj.values[0] == 5:
+				flag = true
+#		if flag:
+#			rint(dict.sphenic_number[key])
+#		rint(key," min ",dict.sphenic_number.full[key][0].mult," max ",dict.sphenic_number.full[key][dict.sphenic_number.full[key].size()-1].mult)
+	dict.path = {}
+	dict.path.label = NodePath("res://Game/BastionLevel")
 
 func init_arr():
 	arr.sequence = {} 
-	arr.sequence["A000040"] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
-	arr.sequence["A000045"] = [89, 55, 34, 21, 13, 8, 5, 3, 2, 1, 1]
-	arr.sequence["A000124"] = [7, 11, 16] #, 22, 29, 37, 46, 56, 67, 79, 92, 106, 121, 137, 154, 172, 191, 211]
-	arr.sequence["A001358"] = [4, 6, 9, 10, 14, 15, 21, 22, 25, 26]
+	arr.sequence["A000040"] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67]#, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199
+	arr.sequence["A000045"] = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987]
+	arr.sequence["A000124"] = [1, 2, 4, 7, 11, 16]#, 22, 29, 37, 46, 56, 67, 79, 92, 106, 121, 137, 154, 172, 191, 211
+	arr.sequence["A001358"] = [4, 6, 9, 10, 14, 15, 21, 22, 25, 26]#, 33, 34, 35, 38, 39, 46, 49, 51, 55, 57, 58, 62, 65, 69, 74, 77, 82, 85, 86, 87, 91, 93, 94, 95, 106
+	arr.sequence["A000108"] = [1, 1, 2, 5, 14, 42, 132, 429, 1430]
+	arr.sequence["A160860"] = [1, 4, 11, 24, 47, 80]
+	arr.sequence["A006003"] = [0, 1, 5, 15, 34, 65, 111, 175, 260, 369, 505, 671, 870]
+	arr.sequence["A007304"] = [30, 42, 66, 70, 78, 102, 105, 110, 114, 130, 138, 154, 165, 170, 174, 182, 186, 190, 195, 222, 230, 231, 238, 246, 255, 258, 266, 273, 282, 285, 286]
+	
 	
 	arr.neighbor = [
 		[
@@ -91,10 +122,14 @@ func init_arr():
 			Vector2( 0,-1)
 		]
 	]
+	
+	arr.element = ["Aqua","Wind","Fire","Earth"]
 
 func init_node():
 	node.TimeBar = get_node("/root/Game/TimeBar") 
 	node.Game = get_node("/root/Game") 
+	node.BastionLevel = get_node("/root/Game/BastionLevel") 
+	node.BastionCharge = get_node("/root/Game/BastionCharge") 
 
 func init_flag():
 	flag.click = false
@@ -126,8 +161,8 @@ func init_window_size():
 
 func _ready():
 	init_num()
-	init_dict()
 	init_arr()
+	init_dict()
 	init_node()
 	init_flag()
 	init_vec()
@@ -137,7 +172,6 @@ func save_json(data_,file_path_,file_name_):
 	file.open(file_path_+file_name_+".json", File.WRITE)
 	file.store_line(to_json(data_))
 	file.close()
-	print(data_)
 
 func load_json(file_path_,file_name_):
 	var file = File.new()
@@ -149,3 +183,40 @@ func load_json(file_path_,file_name_):
 	file.open(file_path_+file_name_+".json", File.READ)
 	var data = parse_json(file.get_as_text())
 	return data
+
+func calc_sphenic_numbers():
+	#products of 3 distinct primes
+	var values = {}
+	
+	for _i in arr.sequence["A000040"].size():
+		for _j in range(_i+1,arr.sequence["A000040"].size(),1):
+			for _k in range(_j+1,arr.sequence["A000040"].size(),1):
+				var obj = {}
+				obj.mult = 1
+				obj.sum = 0
+				obj.indexs = [_i,_j,_k]
+				obj.values = []
+				
+				
+				for index in obj.indexs:
+					var value = arr.sequence["A000040"][index]
+					obj.values.append(value)
+					obj.sum += value
+					obj.mult *= value
+				
+				if values.keys().has(obj.sum):
+					values[obj.sum].append(obj)
+				else:
+					values[obj.sum] = [obj]
+	
+				obj.value = obj.mult
+	
+	for key in values:
+		values[key].sort_custom(Classes.Sorter, "sort_ascending")
+	
+	var file_path = "res://jsons/"
+	var file_name = "sphenic_number"
+	#save_json(values,file_path,file_name)
+	#rint(values)
+	dict.sphenic_number.full = values
+	
