@@ -21,6 +21,7 @@ func init_num():
 	num.map.a = 10
 	num.map.h = 2*num.map.a
 	num.map.w = sqrt(3)*num.map.a
+	num.map.neighbors = 6
 	
 	num.dot = {}
 	num.dot.n = num.map.rings*2-1
@@ -30,6 +31,9 @@ func init_num():
 	num.deck = {}
 	num.deck.size = 12
 	num.deck.refill = num.deck.size/3
+	
+	num.ammo = {}
+	num.ammo.size = 6
 
 func init_primary_key():
 	num.primary_key = {}
@@ -58,6 +62,92 @@ func init_dict():
 	
 	for key in dict.sphenic_number.full.keys():
 		dict.sphenic_number.keys.append(int(key))
+	
+	dict.cannon = {}
+	dict.cannon.rank = {
+		"0": ["Singler"],
+		"1": ["Rounder","Faner"],
+		"2": ["Beamer","Artillery"]
+	}
+	dict.cannon.description = {
+		"Singler": {
+			"Directions": [0],
+		},
+		"Rounder": {
+			"Directions": [0,4,2],
+		},
+		"Faner": {
+			"Directions": [0,5,1],
+		},
+		"Beamer": {
+			"Directions": [0],
+		},
+		"Artillery": {
+			"Directions": [0],
+		}
+	}
+	dict.ammo = {}
+	dict.ammo.rank = {
+		"0": ["Basic"],
+		"1": ["Splasher","Piercer"],
+		"2": ["Blader","Waver","Blaster"]
+	}
+	dict.ammo.description = {
+		"Basic": {
+			"Alpha Part": 1,
+			"Beta Part": 0,
+			"Directions": [],
+			"Range": 0,
+			"Dilution": 0,
+			"Alpha Factor": 1,
+			"Beta Factor": 0
+		},
+		"Splasher": {
+			"Alpha Part": 0.5,
+			"Beta Part": 0.5,
+			"Directions": [5,1],
+			"Range": 1,
+			"Dilution": 0,
+			"Alpha Factor": 1,
+			"Beta Factor": 1
+		},
+		"Piercer": {
+			"Alpha Part": 0.5,
+			"Beta Part": 0.5,
+			"Directions": [0],
+			"Range": 1,
+			"Dilution": 0,
+			"Alpha Factor": 1,
+			"Beta Factor": 1
+		},
+		"Blader": {
+			"Alpha Part": 0.5,
+			"Beta Part": 0.5,
+			"Directions": [0,1,2],
+			"Range": 2,
+			"Dilution": 0,
+			"Alpha Factor": 1,
+			"Beta Factor": 1
+		},
+		"Waver": {
+			"Alpha Part": 0.5,
+			"Beta Part": 0.5,
+			"Directions": [0,1],
+			"Range": 3,
+			"Dilution": 0,
+			"Alpha Factor": 1,
+			"Beta Factor": 1
+		},
+		"Blaster": {
+			"Alpha Part": 0.5,
+			"Beta Part": 0.5,
+			"Directions": [0,1,2,3,4,5],
+			"Range": 1,
+			"Dilution": 0,
+			"Alpha Factor": 1,
+			"Beta Factor": 1
+		}
+	}
 	
 	dict.sphenic_number.keys.sort()
 	

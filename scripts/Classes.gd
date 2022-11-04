@@ -43,6 +43,7 @@ class Hex:
 		arr.point = []
 		arr.neighbor = []
 		dict.challenger = {}
+		dict.direction = {}
 		flag.visiable = false
 		flag.capital = false
 		obj.map = input_.map
@@ -52,12 +53,16 @@ class Hex:
 		for dot in arr.dot:
 			arr.point.append(dot.vec.pos)
 			vec.center += dot.vec.pos/arr.dot.size()
+		
+		for _i in Global.num.map.neighbors:
+			dict.direction[_i] = null
 
 	func contribute_damage(bastion_, value_):
-		if dict.challenger.keys().has(bastion_):
-			dict.challenger[bastion_] += value_
-		else:
-			dict.challenger[bastion_] = value_
+		if bastion_ != obj.bastion:
+			if dict.challenger.keys().has(bastion_):
+				dict.challenger[bastion_] += value_
+			else:
+				dict.challenger[bastion_] = value_
 
 	func embody_damage():
 		var conqueror = {}
@@ -189,7 +194,7 @@ class Card:
 					options.append(types[_i])
 		
 		Global.rng.randomize()
-		var index_r = Global.rng.randi_range(0, options.size() - 1)
+		var index_r = Global.rng.randi_range(0, options.size()-1)
 		
 		match options[index_r]:
 			"Denomination":
@@ -221,7 +226,7 @@ class Card:
 						options.append(element)
 						
 				Global.rng.randomize()
-				index_r = Global.rng.randi_range(0, options.size() - 1)
+				index_r = Global.rng.randi_range(0, options.size()-1)
 				word.type = options[index_r]
 
 class Cannon:
@@ -230,10 +235,89 @@ class Cannon:
 	var obj = {}
 
 	func _init(input_):
-		word.type = input_.type
-		obj.bastion = input_.bastion
+		num.rank = input_.rank
 		num.level = {}
 		num.level.current = 0
+		word.type = input_.type
+		obj.owner = input_.owner
+
+	func upgrade_rank():
+		if num.rank < Global.dict.cannon.rank.keys().size()-1:
+			num.rank += 1
+			
+			Global.rng.randomize()
+			var index_r = Global.rng.randi_range(0, Global.dict.cannon.rank[str(num.rank)].size() - 1)
+			
+			word.type = Global.dict.cannon.rank[str(num.rank)][index_r]
+			print(word.type)
+		else:
+			print("OverExpCannon")
+
+class Ammo:
+	var num = {}
+	var word = {}
+	var obj = {}
+
+	func _init(input_):
+		num.rank = input_.rank
+		num.level = {}
+		num.level.current = 0
+		word.type = input_.type
+		obj.owner = input_.owner
+
+	func detonation(hex_, charge_,direction_index_):
+		var description = Global.dict.ammo.description[word.type]
+		var charge = float(charge_)/Global.dict.cannon.description[obj.owner.obj.cannon.word.type]["Directions"].size()
+		var targets = []
+		var target = {}
+		target.hex = hex_
+		target.charge = description["Alpha Part"]*charge
+		targets.append(target)
+		obj.owner.update_borderlands()
+		
+		for index in description["Directions"]:
+			var hexs = [hex_]
+			var current_index = (direction_index_+index)%Global.num.map.neighbors
+			
+			if target.hex.flag.visiable:
+				for _j in description["Range"]:
+					if word.type == "Waver":
+						hexs.append(get_waver_hex(hexs,index))
+					else:
+						hexs.append(hexs.back().dict.direction[current_index])
+					
+					if target.hex.flag.visiable:
+						target = {}
+						target.hex = hexs.back()
+						target.charge = description["Beta Part"]/description["Directions"].size()/description["Range"]*charge
+						targets.append(target)
+		
+		for target_ in targets:
+			target_.hex.contribute_damage(obj.owner, target.charge)
+	
+	func get_waver_hex(hexs_,index_):
+		var options = []
+		
+		for neighbor in hexs_.back().arr.neighbor:
+			if obj.owner.arr.borderland.has(neighbor) && !hexs_.has(neighbor):
+				options.append(neighbor)
+		
+		if options.size() > 1:
+			options.remove(index_)
+			
+		if options.size() > 0:
+			return options[0]
+		else:
+			return hexs_.back()
+
+	func upgrade_rank():
+		num.rank += 1
+		
+		Global.rng.randomize()
+		var index_r = Global.rng.randi_range(0, Global.dict.ammo.rank[str(num.rank)].size() - 1)
+		
+		word.type = Global.dict.ammo.rank[str(num.rank)][index_r]
+		print(word.type)
 
 class Bastion:
 	var num = {}
@@ -245,11 +329,11 @@ class Bastion:
 	func _init(input_):
 		num.index = Global.num.primary_key.bastion
 		Global.num.primary_key.bastion += 1
-		obj.hex = input_.hex
-		obj.hex.obj.bastion = self
-		obj.hex.flag.capital = true
-		obj.map = obj.hex.obj.map
-		arr.hex = [obj.hex]
+		obj.capital = input_.hex
+		obj.capital.obj.bastion = self
+		obj.capital.flag.capital = true
+		obj.map = obj.capital.obj.map
+		arr.hex = [obj.capital]
 		num.fuel = 0
 		num.refill = {}
 		num.refill.card = Global.num.deck.refill
@@ -259,8 +343,11 @@ class Bastion:
 		num.level = {}
 		num.level.current = 0
 		num.element = num.index*Global.arr.element.size()/Global.num.primary_key.bastion
+		init_nodes()
 		init_deck()
-		
+		init_cannon()
+
+	func init_nodes():
 		node.level = Label.new()
 		node.level.set("custom_fonts/font", load("res://assets/ELEPHNT.TTF"))
 		node.level.set("custom_colors/font_color", Color(1,1,1))
@@ -299,6 +386,26 @@ class Bastion:
 		
 		arr.deck.shuffle()
 
+	func init_cannon():
+		var input = {}
+		input.owner = self
+		input.type = "Rounder"#Singler Rounder Faner
+		input.rank = 0
+		obj.cannon = Classes.Cannon.new(input)
+		
+		init_ammos()
+
+	func init_ammos():
+		arr.ammo = []
+		
+		for _i in Global.num.ammo.size:
+			var input = {}
+			input.owner = self
+			input.type = "Basic"# Basic Piercer Splasher Blader Blaster Waver
+			input.rank = 0
+			var ammo = Classes.Ammo.new(input)
+			arr.ammo.append(ammo)
+
 	func refill_hand():
 		arr.hand = []
 		
@@ -316,7 +423,7 @@ class Bastion:
 			arr.deck.append(arr.discard.pop_back())
 		
 		arr.deck.shuffle()
-		launch_expanse()
+		#launch_expanse()
 
 	func use_hand():
 		while arr.hand.size() > 0:
@@ -326,64 +433,57 @@ class Bastion:
 
 	func launch_charge():
 		Global.rng.randomize()
-		var index_r = Global.rng.randi_range(0, Global.arr.neighbor[obj.hex.num.parity].size() - 1)
-		var grid = obj.hex.vec.grid
+		var direction_index = Global.rng.randi_range(0, Global.num.map.neighbors-1) 
+		
+		for index in 1:#Global.dict.cannon.description[obj.cannon.word.type]["Directions"]:
+			var sub_index = (direction_index+index)%Global.num.map.neighbors
+			#print(self,sub_index)
+			sub_launch(sub_index)
+
+	func sub_launch(sub_index_):
+		var direction_index = sub_index_
+		var current_hex = obj.capital
+		var type = ""
 		#pls fix this bug 1
 		var counter = 0
 		
 		while num.charge > 0 && counter < 100:
 			counter += 1
+			#print(self,current_hex)
 			
-			if obj.map.check_border(grid):
-				var direction_hex = obj.map.arr.hex[grid.y][grid.x]
-				
-				if direction_hex.flag.visiable:
-					var type = ""
+			if current_hex.obj.bastion == null:
+				type = "Damage"
+			else:
+				if current_hex.obj.bastion.num.index == num.index:
+					type = "Move"
 					
-					if direction_hex.obj.bastion == null:
-						type = "Damage"
-					else:
-						if direction_hex.obj.bastion.num.index == num.index:
-							type = "Move"
-							
-							if direction_hex.num.hp.current != direction_hex.num.hp.max:
-								if !direction_hex.flag.capital:
-									type = "Heal"
-						else:
-							type = "Damage"
+					if current_hex.num.hp.current != current_hex.num.hp.max:
+						if !current_hex.flag.capital:
+							type = "Heal"
+				else:
+					type = "Damage"
+			
+			match type:
+				"Move":
+					direction_index = get_deviation(current_hex,direction_index)
+					current_hex = current_hex.dict.direction[direction_index]
 					
-					match type:
-						"Move":
-							var parity = int(grid.y)%2
-							index_r = get_deviation(index_r)
-							var direction = Global.arr.neighbor[parity][index_r]
-							grid += direction 
-							var border = false
-							
-							if !obj.map.check_border(grid):
-								border = true
-							else:
-								var next_hex = obj.map.arr.hex[grid.y][grid.x]
-								
-								if !next_hex.flag.visiable:
-									border = true
-							
-							if border:
-								grid -= direction 
-								var new_index = get_after_border_direction(direction_hex, index_r)
-								#pint("old",index_r)
-								#pint("new",new_index)
-								index_r = new_index
-								direction = Global.arr.neighbor[parity][new_index]
-								grid += direction 
-								
-							#value -= 1
-						"Heal":
-							direction_hex.get_heal(num.charge)
-						"Damage":
-							direction_hex.contribute_damage(self, num.charge)
-		
+					if !current_hex.dict.direction[direction_index].flag.visiable:
+						direction_index = get_after_border_direction(current_hex, direction_index)
+						
+					#value -= 1
+				"Heal":
+					current_hex.get_heal(num.charge)
+				"Damage":
+					arr.ammo.front().detonation(current_hex,num.charge,direction_index)
+					next_ammo()
+
 		num.fuel = 0
+		num.charge = 0
+
+	func next_ammo():
+		var ammo = arr.ammo.pop_front()
+		arr.ammo.append(ammo)
 		num.charge = 0
 
 	func check_charge_value():
@@ -404,62 +504,53 @@ class Bastion:
 
 	func launch_expanse():
 		if obj.map.arr.bastion.size() > 1:
-			var ordered = get_borderlands()
-			tick_borderlands(ordered)
+			tick_borderlands()
 
-	func get_borderlands():
-		var borderlands = []
-		var incloseds = []
+	func get_ordered():
 		var ordered = []
-		var chains = [[]]
+		update_borderlands()
+		ordered.append_array(arr.hollow)
+		var threats = find_capital_threats()
+		ordered.append_array(threats)
+		return ordered
+
+	func update_borderlands():
+		var hexs = []
+		arr.chain = [[]]
+		arr.borderland = []
+		arr.hollow = []
 		
 		for hex in arr.hex:
 			for neighbor in hex.arr.neighbor:
-				if neighbor.obj.bastion != self && !borderlands.has(neighbor):
-					borderlands.append(neighbor)
+				if neighbor.obj.bastion != self && !hexs.has(neighbor):
+					hexs.append(neighbor)
 		
-		for borderland in borderlands:
+		for hex in hexs:
 			var flag = true
 			
-			for neighbor in borderland.arr.neighbor:
-				flag = flag && neighbor.obj.bastion == self
-			
-			if flag:
-				incloseds.append(borderland)
-				borderlands.erase(borderland)
-		
-		ordered.append_array(incloseds)
-		var value = floor(sqrt(arr.hex.size()))
-		
-		for borderland in borderlands:
-			var flag = true
-			
-			for chain in chains:
-				for hex in chain:
-					if hex.arr.neighbor.has(borderland) && !chain.has(borderland):
-						chain.append(borderland)
+			for chain in arr.chain:
+				for hex_ in chain:
+					if hex_.arr.neighbor.has(hex) && !chain.has(hex):
+						chain.append(hex)
 						flag = false
 			
 			if flag:
-				chains.append([borderland])
+				arr.chain.append([hex])
+				
+		arr.chain.pop_front()
 		
-		for _i in range(chains.size()-1,-1-1):
-			var chain = chains[_i]
+		for chain in arr.chain:
 			var flag = true
 			
 			for hex in chain:
 				for neighbor in hex.arr.neighbor:
 					if !chain.has(neighbor):
-						if neighbor.obj.bastion != self && neighbor.flag.visiable:
-							flag = false
+						flag = flag && neighbor.obj.bastion == self
 			
 			if flag:
-				ordered.append_array(chain)
-				chains.erase(chain)
-		
-		var threats = find_capital_threats(chains)
-		ordered.append_array(threats)
-		return ordered
+				arr.hollow.append_array(chain)
+			else:
+				arr.borderland.append_array(chain)
 
 	func calc_centroidal():
 		var vec = Vector2()
@@ -476,24 +567,23 @@ class Bastion:
 		for bastion in obj.map.arr.bastion:
 			if bastion != self:
 				var dist = {}
-				dist.value = bastion.obj.hex.vec.center.distance_to(centroidal)
+				dist.value = bastion.obj.capital.vec.center.distance_to(centroidal)
 				dist.bastion = bastion
 				dists.append(dist)
 		
 		dists.sort_custom(Classes.Sorter, "sort_ascending")
 		return dists
 
-	func find_capital_threats(chains_):
+	func find_capital_threats():
 		var ordered = []
 		var threats = []
 		var bastions = find_nearest_capital()
 		
-		for chain in chains_:
-			for hex in chain:
-				var threat = {}
-				threat.value = hex.vec.center.distance_to(bastions[0].bastion.obj.hex.vec.center)
-				threat.hex = hex
-				threats.append(threat)
+		for hex in arr.borderland:
+			var threat = {}
+			threat.value = hex.vec.center.distance_to(bastions[0].bastion.obj.capital.vec.center)
+			threat.hex = hex
+			threats.append(threat)
 				
 		threats.sort_custom(Classes.Sorter, "sort_ascending")
 		
@@ -502,56 +592,54 @@ class Bastion:
 			
 		return ordered
 
-	func tick_borderlands(ordered_):
+	func tick_borderlands():
+		var ordered = get_ordered()
 		var value = floor(sqrt(arr.hex.size()))
 		
 		for _i in value:
-			var hex = ordered_.pop_front()
+			var hex = ordered.pop_front()
 			hex.contribute_damage(self, value)
 
-	func get_deviation(old_index_):
+	func get_deviation(hex_,old_index_):
 		var options = []
 		var copy = 2
-		var n = Global.arr.neighbor[0].size()
 		
 		for _i in range(-1,1,1):
-			var index = (old_index_+_i+n)%n
-			options.append(index)
+			var index = (old_index_+_i+Global.num.map.neighbors)%Global.num.map.neighbors
 			
-			if index == old_index_:
-				for _j in copy:
+			if hex_.dict.direction[index] != null:
+				if hex_.dict.direction[index].flag.visiable:
 					options.append(index)
-			
+				
+					if index == old_index_:
+						for _j in copy:
+							options.append(index)
+				
 		Global.rng.randomize()
-		var index_r = Global.rng.randi_range(0, options.size() - 1)
+		var index_r = Global.rng.randi_range(0, options.size()-1)
 		return options[index_r]
 
 	func get_after_border_direction(hex_, old_index_):
 		var options = []
-		var parity = int(hex_.vec.grid.y)%2
-		var n = Global.arr.neighbor[parity].size()
-		var reflected_index = (n/2+old_index_)%n
-		var reflected_direction = Global.arr.neighbor[parity][reflected_index]
+		var reflected_index = (Global.num.map.neighbors/2+old_index_)%Global.num.map.neighbors
 		
-		for _i in Global.arr.neighbor[parity].size():
-			var neighbor = Global.arr.neighbor[parity][_i]
-			var grid = hex_.vec.grid + neighbor
-			
-			if obj.map.check_border(grid) && reflected_direction != neighbor:
-				options.append(_i)
+		for index in Global.num.map.neighbors:
+			if hex_.dict.direction[index] != null:
+				if hex_.dict.direction[index].flag.visiable && reflected_index != index:
+					options.append(index)
 		
 		Global.rng.randomize()
-		var index_r = Global.rng.randi_range(0, options.size() - 1)
+		var index_r = Global.rng.randi_range(0, options.size()-1)
 		return options[index_r]
 
 	func update_connects():
 		var unconnecteds = []
-		var connecteds = [[obj.hex]]
+		var connecteds = [[obj.capital]]
 		
 		for hex in arr.hex:
 			unconnecteds.append(hex)
 		
-		unconnecteds.erase(obj.hex)
+		unconnecteds.erase(obj.capital)
 		
 		var flag = true
 		var _i = 0
@@ -587,30 +675,38 @@ class Bastion:
 		choose_upgrade()
 
 	func choose_upgrade():
-		if num.level.current%2:
-			if arr.discard.size() > 0:
-				var card = null
-				
-				for card_ in arr.discard:
-					if card_.word.type == "Blank":
-						card = card_
-				
-				if card != null:
-					card.upgrade()
-				else:
-					print("error 2 upgrade card:no Blank in discard")
+		if arr.discard.size() > 0:
+			var card = null
+			
+			for card_ in arr.discard:
+				if card_.word.type == "Blank":
+					card = card_
+			
+			if card != null:
+				card.upgrade()
 			else:
-				print("error 1 upgrade card: discard size == 0")
+				print("error 2 upgrade card:no Blank in discard")
 		else:
-			upgrade_cannon()
+			print("error 1 upgrade card: discard size == 0")
+			
+		if num.level.current%12 == 0:
+			upgrade_ammo()
+		if num.level.current%12 == 0:
+			obj.cannon.upgrade_rank()
 
-	func upgrade_cannon():
-		match num.level.current:
-			"2":
-				pass
+	func upgrade_ammo():
+		var options = []
+		
+		for ammo in arr.ammo:
+			for _i in pow(Global.dict.ammo.rank.keys().size()-1-ammo.num.rank,2):
+				options.append(ammo)
+		
+		Global.rng.randomize()
+		var index_r = Global.rng.randi_range(0, options.size()-1)
+		options[index_r].upgrade_rank()
 
 	func die():
-		obj.hex.flag.capital = false
+		obj.capital.flag.capital = false
 		
 		for hex in arr.hex:
 			hex.reset()
@@ -640,7 +736,7 @@ class Map:
 		
 		init_dots()
 		init_hexs()
-		init_neighbor()
+		init_neighbors()
 		around_center()
 		init_sectors()
 		init_bastions()
@@ -709,10 +805,11 @@ class Map:
 		
 		arr.hex.pop_back()
 
-	func init_neighbor():
+	func init_neighbors():
 		for hexs in arr.hex:
 			for hex in hexs:
-				for neighbor in Global.arr.neighbor[hex.num.parity]:
+				for index in Global.num.map.neighbors:
+					var neighbor = Global.arr.neighbor[hex.num.parity][index]
 					var grid = hex.vec.grid + neighbor 
 					
 					if check_border(grid):
@@ -721,10 +818,13 @@ class Map:
 						if !hex.arr.neighbor.has(neighbor_hex):
 							hex.arr.neighbor.append(neighbor_hex)
 							neighbor_hex.arr.neighbor.append(hex)
+							
+							var reflected_index = (index+Global.num.map.neighbors/2)%Global.num.map.neighbors
+							hex.dict.direction[index] = neighbor_hex
+							neighbor_hex.dict.direction[reflected_index] = hex
 
 	func around_center():
-		var n = arr.hex.size()/2
-		var center = arr.hex[n][n]
+		var center = arr.hex[arr.hex.size()/2][arr.hex.size()/2]
 		var arounds = [[center]]
 		center.num.ring = 0
 		center.flag.visiable = true
@@ -805,7 +905,7 @@ class Map:
 		
 		while options.size() > 0:
 			Global.rng.randomize()
-			var index_r = Global.rng.randi_range(0, options.size() - 1)
+			var index_r = Global.rng.randi_range(0, options.size()-1)
 			var input = {}
 			input.hex = options[index_r]
 			var bastion = Classes.Bastion.new(input)
@@ -826,7 +926,7 @@ class Map:
 			hex.recolor("Sectors")
 			
 		for bastion in arr.bastion:
-			bastion.obj.hex.recolor("Bastions")
+			bastion.obj.capital.recolor("Bastions")
 
 	func embody_hexs():
 		for hexs in arr.hex:

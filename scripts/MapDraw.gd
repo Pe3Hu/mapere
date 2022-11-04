@@ -28,7 +28,7 @@ func _draw():
 
 func _process(delta):
 	for bastion in Global.obj.map.arr.bastion:
-		bastion.node.level.rect_global_position =  bastion.obj.hex.vec.center
+		bastion.node.level.rect_global_position =  bastion.obj.capital.vec.center
 		bastion.node.level.text = str(bastion.num.level.current)
 		
 	update()

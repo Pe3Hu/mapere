@@ -5,7 +5,7 @@ func init_map():
 	Global.obj.map = Classes.Map.new()
 	
 	#Global.rng.randomize()
-	#var index_r = Global.rng.randi_range(0, options.size() - 1)
+	#var index_r = Global.rng.randi_range(0, options.size()-1)
 
 func _ready():
 	init_map()
