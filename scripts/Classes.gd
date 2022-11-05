@@ -110,7 +110,7 @@ class Hex:
 			conqueror_.value = 0
 		
 		if num.hp.current <= 0:
-			Global.get_experience(conqueror_.bastion,num.level.current)
+			Global.get_experience(conqueror_.bastion,num.level.current*3)
 			Global.rise_level(self)
 			
 			if obj.bastion != null:
@@ -118,17 +118,14 @@ class Hex:
 					obj.bastion.die()
 				else:
 					obj.bastion.arr.hex.erase(self)
-					#obj.bastion.check_continuity([self],0)
 				
 			obj.bastion = conqueror_.bastion
 			obj.bastion.arr.hex.append(self)
-			#parent_.arr.child.append(self)
 			recolor("Bastions")
 		else:
 			recolor("Hp")
 			
 		updated_label_text()
-		#return conqueror_.value
 
 	func get_heal(value_):
 		var heal = min(num.hp.max-num.hp.current,value_)
@@ -178,14 +175,15 @@ class Hex:
 class Card:
 	var num = {}
 	var word = {}
+	var arr = {}
+	var flag = {}
 	var obj = {}
 
 	func _init(input_):
 		word.type = input_.type
-		word.element = "None"
 		word.class = "Card"
 		num.denomination = input_.denomination
-		obj.bastion = input_.deck
+		obj.bastion = input_.bastion
 		num.level = {}
 		num.level.current = 0
 		num.experience = {}
@@ -194,6 +192,8 @@ class Card:
 		num.shift = {}
 		num.shift.current = 0
 		num.shift.max = 3
+		arr.element = []
+		flag.unique = false
 
 	func use():
 		match word.type:
@@ -203,55 +203,34 @@ class Card:
 			"Blank":
 				obj.bastion.num.fuel += num.denomination
 				
-				if word.element != "None":
-					for _i in num.denomination:
-						obj.bastion.arr.element.append(word.element)
+				if arr.element.size() > 0:
+					for element in arr.element:
+						for _i in num.denomination:
+							obj.bastion.arr.element.append(element)
 
-	func upgrade():
-		var types = ["Denomination","Shift","Element"]
-		var copys = [4,2,1]
-		var options = []
+	func poker_check():
+		flag.unique = true
 		
-		for _i in types.size():
-			if types[_i] != "Element" || (types[_i] == "Element" && word.element == "None"):
-				for _j in copys[_i]:
-					options.append(types[_i])
+		for poker in obj.bastion.arr.poker:
+			if poker.arr.element.front() == arr.element.front() && poker.num.denomination == num.denomination:
+				flag.unique = false
 		
-		Global.rng.randomize()
-		var index_r = Global.rng.randi_range(0, options.size()-1)
+		if flag.unique:
+			obj.bastion.arr.poker.append(self)
+			
+			for type in obj.bastion.dict.upgrade[word.class].keys():
+				for index in obj.bastion.dict.upgrade[word.class][type]["Indexs"].keys():
+					if obj.bastion.dict.upgrade[word.class][type]["Indexs"][index].size() > 0:
+						if obj.bastion.dict.upgrade[word.class][type]["Indexs"][index].has(self):
+							obj.bastion.dict.upgrade[word.class][type]["Indexs"][index].erase(self)
 		
-		match options[index_r]:
-			"Denomination":
-				var bonus = 1
-				num.denomination += bonus
-			"Shift":
-				var bonus = 1
-				num.shift.current += bonus
-				
-				while num.shift.current > num.shift.max:
-					num.shift.current -= num.shift.max
-					num.denomination += 1
-			"Element":
-				options = []
-				var elements = {}
-				var base = 2
-				
-				for element in Global.arr.element:
-					elements[element] = 0
-				
-				elements[Global.arr.element[obj.bastion.num.element]] += 1
-				
-				for card in obj.bastion.arr.card:
-					if elements.keys().has(card.word.type):
-						elements[card.word.type] += 1
-				
-				for element in elements.keys():
-					for _i in pow(base, elements[element]):
-						options.append(element)
-						
-				Global.rng.randomize()
-				index_r = Global.rng.randi_range(0, options.size()-1)
-				word.type = options[index_r]
+			#obj.bastion.dict.poker["Element"][arr.element.front()].append(num.denomination)
+			
+			#if obj.bastion.dict.poker["Denomination"].keys().has(num.denomination):
+			#	obj.bastion.dict.poker["Denomination"][num.denomination].append(arr.element.front())
+			
+			if obj.bastion.num.index == 0:
+				print(obj.bastion.arr.poker.size(), " ", arr.element.front(), " ", num.denomination)
 
 class Cannon:
 	var word = {}
@@ -345,16 +324,6 @@ class Ammo:
 		else:
 			return hexs_.back()
 
-	func upgrade_rank():
-		num.rank += 1
-		
-		Global.rng.randomize()
-		var index_r = Global.rng.randi_range(0, Global.dict[word.class].rank[str(num.rank)].size() - 1)
-		
-		word.type = Global.dict[word.class].rank[str(num.rank)][index_r]
-		print(word.type)
-
-
 class Bastion:
 	var word = {}
 	var num = {}
@@ -362,6 +331,7 @@ class Bastion:
 	var flag = {}
 	var obj = {}
 	var node = {}
+	var dict = {}
 
 	func _init(input_):
 		word.class = "Bastion"
@@ -372,12 +342,14 @@ class Bastion:
 		obj.capital.flag.capital = true
 		obj.map = obj.capital.obj.map
 		arr.hex = [obj.capital]
-		arr.element = []
-		init_nums()
 		init_nodes()
+		init_nums()
 		init_deck()
 		init_cannons()
 		init_ammos()
+		init_poker()
+		init_upgrades()
+		init_elements()
 
 	func init_nums():
 		num.fuel = 0
@@ -388,7 +360,10 @@ class Bastion:
 		num.experience.current = 0
 		num.experience.max = 1
 		num.level = {}
-		num.level.current = 0
+		num.level.current = -1
+		num.upgrade = {}
+		num.upgrade.current = 0
+		Global.rise_level(self)
 		num.factor = 1
 		num.element = num.index*Global.arr.element.size()/Global.num.primary_key.bastion
 
@@ -409,7 +384,7 @@ class Bastion:
 				var input = {}
 				input.type = key
 				input.denomination = 1
-				input.deck = self
+				input.bastion = self
 				var card = Classes.Card.new(input)
 				arr.card.append(card)
 		
@@ -438,9 +413,61 @@ class Bastion:
 			var ammo = Classes.Ammo.new(input)
 			arr.ammo.append(ammo)
 
-	func refill_hand():
-		arr.hand = []
+	func init_upgrades():
+		dict.upgrade = {}
 		
+		for class_ in Global.dict.upgrade.rise.keys():
+			dict.upgrade[class_] = {}
+			
+			for type in Global.dict.upgrade.rise[class_].keys():
+				dict.upgrade[class_][type] = {}
+				dict.upgrade[class_][type]["Weight"] = 0
+				dict.upgrade[class_][type]["Indexs"] = {}
+				dict.upgrade[class_][type]["Indexs"][0] = []
+				
+				match class_:
+					"Card":
+						dict.upgrade[class_][type]["Indexs"][0].append_array(arr.card)
+						
+						for card in dict.upgrade[class_][type]["Indexs"][0]:
+							if card.word.type == "Trigger":
+								dict.upgrade[class_][type]["Indexs"][0].erase(card)
+					"Ammo":
+						dict.upgrade[class_][type]["Indexs"][0].append_array(arr.ammo)
+					"Cannon":
+						dict.upgrade[class_][type]["Indexs"][0].append_array(arr.cannon)
+		
+		reset_weights()
+
+	func reset_weights():
+		if flag.poker:
+			dict.upgrade["Card"]["Denomination"]["Weight"] = 1
+			dict.upgrade["Card"]["Element"]["Weight"] = 4
+		if flag.peak:
+			dict.upgrade["Card"]["Shift"]["Weight"] = 1
+
+	func init_elements():
+		arr.element = []
+		dict.element = {}
+		
+		for element in Global.arr.element:
+			dict.element[element] = 0
+			
+		dict.element[Global.arr.element[num.element]] += 1
+
+	func init_poker():
+		flag.peak = false
+		flag.poker = true
+		arr.poker = []
+		dict.poker = {}
+		#dict.poker["Denomination"].pool = []
+		dict.poker["Element"] = []
+		
+		for _i in Global.dict.poker.size["Denomination"]:
+			for _j in Global.dict.poker.size["Element"]:
+				dict.poker["Element"].append(Global.arr.element[_j]) 
+
+	func refill_hand():
 		for _i in num.refill.card:
 			pull_card()
 
@@ -449,9 +476,10 @@ class Bastion:
 			arr.hand.append(arr.deck.pop_back())
 		else:
 			reshuffle() 
+			arr.hand.append(arr.deck.pop_back())
 
 	func reshuffle():
-		for _i in arr.discard.size():
+		while arr.discard.size() > 0:
 			arr.deck.append(arr.discard.pop_back())
 		
 		arr.deck.shuffle()
@@ -792,35 +820,36 @@ class Bastion:
 			arr.hex.erase(unconnected)
 
 	func choose_upgrade():
-		if arr.discard.size() > 0:
-			var card = null
-			
-			for card_ in arr.discard:
-				if card_.word.type == "Blank":
-					card = card_
-			
-			if card != null:
-				card.upgrade()
-			else:
-				print("error 2 upgrade card:no Blank in discard")
-		else:
-			print("error 1 upgrade card: discard size == 0")
-			
-		if num.level.current%12 == 0:
-			upgrade_ammo()
-		if num.level.current%12 == 0:
-			arr.cannon.front().upgrade_rank()
-
-	func upgrade_ammo():
-		var options = []
+		var datas = []
 		
-		for ammo in arr.ammo:
-			for _i in pow(Global.dict["Ammo"].rank.keys().size()-1-ammo.num.rank,2):
-				options.append(ammo)
+		for class_ in dict.upgrade.keys():
+			for type in dict.upgrade[class_].keys():
+				for index in dict.upgrade[class_][type]["Indexs"].keys():
+					if dict.upgrade[class_][type]["Indexs"][index].size() > 0:
+						var data = {}
+						data.class = class_
+						data.type = type
+						data.index = index
+						data.bonus = 1
+						
+						if Global.get_price(data) <= num.upgrade.current: 
+							for _i in dict.upgrade[class_][type]["Weight"]:
+								datas.append(data)
 		
 		Global.rng.randomize()
-		var index_r = Global.rng.randi_range(0, options.size()-1)
-		options[index_r].upgrade_rank()
+		var index_r = Global.rng.randi_range(0, datas.size()-1)
+		var data = datas[index_r]
+		Global.rng.randomize()
+		var a = dict.upgrade[data.class][data.type]
+		index_r = Global.rng.randi_range(0, dict.upgrade[data.class][data.type]["Indexs"][data.index].size()-1)
+		data.obj = dict.upgrade[data.class][data.type]["Indexs"][data.index].pop_at(index_r)
+		Global.upgrade(data)
+		
+		if data.type != "Shift" && data.type != "Element":
+			if dict.upgrade[data.class][data.type]["Indexs"].keys().has(data.index+1):
+				dict.upgrade[data.class][data.type]["Indexs"][data.index+1].append(data.obj)
+			else:
+				dict.upgrade[data.class][data.type]["Indexs"][data.index+1] = [data.obj]
 
 	func die():
 		obj.capital.flag.capital = false
@@ -1057,6 +1086,7 @@ class Map:
 			
 		for bastion in arr.bastion:
 			bastion.update_connects()
+		
 		if arr.bastion.size() == 1:
 			flag.ready = false
 
