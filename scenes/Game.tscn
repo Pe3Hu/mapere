@@ -29,11 +29,11 @@ tint_progress = Color( 0.964706, 0.584314, 0.0470588, 1 )
 
 [node name="Bastions" type="Node" parent="."]
 
-[node name="BastionLevel" type="VBoxContainer" parent="."]
+[node name="HexLabels" type="VBoxContainer" parent="."]
 margin_right = 40.0
 margin_bottom = 40.0
 
-[node name="BastionCharge" type="VBoxContainer" parent="."]
+[node name="BastionLevels" type="VBoxContainer" parent="."]
 margin_right = 40.0
 margin_bottom = 40.0
 

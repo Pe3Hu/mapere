@@ -25,12 +25,12 @@ func _on_Timer_timeout():
 			bastion.refill_hand()
 			bastion.use_hand()
 			
-			bastion.node.charge.text = "# "+str(bastion.num.index)
+			bastion.node.level.text = "# "+str(bastion.num.index)
 			
 			if bastion.num.index < 10:
-				bastion.node.charge.text += " "
+				bastion.node.level.text += " "
 			
-			bastion.node.charge.text += ": " + str(bastion.num.fuel)
+			bastion.node.level.text += ": " + str(bastion.num.level.current)
 	
 	if Global.node.TimeBar.value >= Global.node.TimeBar.max_value:
 		if Global.obj.map.flag.ready:

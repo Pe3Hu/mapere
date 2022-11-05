@@ -10,6 +10,7 @@ var obj = {}
 var node = {}
 var flag = {}
 var vec = {}
+var font = {}
 
 func init_num():
 	init_primary_key()
@@ -32,8 +33,19 @@ func init_num():
 	num.deck.size = 12
 	num.deck.refill = num.deck.size/3
 	
-	num.ammo = {}
-	num.ammo.size = 6
+	num.factor = {}
+	num.factor.base = {}
+	num.factor.base.bastion = 10
+	num.factor.base.cannon = 10
+	num.factor.base.ammo = 10
+	num.factor.degree = {}
+	num.factor.degree.bastion = 2
+	num.factor.degree.cannon = 2
+	num.factor.degree.ammo = 2
+	num.factor.norm = {}
+	num.factor.norm.bastion = float(pow((num.factor.base.bastion),num.factor.degree.bastion))
+	num.factor.norm.cannon = float(pow((num.factor.base.cannon),num.factor.degree.cannon))
+	num.factor.norm.ammo = float(pow((num.factor.base.ammo),num.factor.degree.ammo))
 
 func init_primary_key():
 	num.primary_key = {}
@@ -63,36 +75,44 @@ func init_dict():
 	for key in dict.sphenic_number.full.keys():
 		dict.sphenic_number.keys.append(int(key))
 	
-	dict.cannon = {}
-	dict.cannon.rank = {
+	dict["Cannon"] = {}
+	dict["Cannon"].rank = {
 		"0": ["Singler"],
 		"1": ["Rounder","Faner"],
 		"2": ["Beamer","Artillery"]
 	}
-	dict.cannon.description = {
+	dict["Cannon"].description = {
 		"Singler": {
 			"Directions": [0],
+			"Standart": true
 		},
 		"Rounder": {
 			"Directions": [0,4,2],
+			"Standart": true
 		},
 		"Faner": {
 			"Directions": [0,5,1],
+			"Standart": true
 		},
 		"Beamer": {
 			"Directions": [0],
+			"Standart": false,
+			"Range": 3
 		},
 		"Artillery": {
 			"Directions": [0],
+			"Standart": false,
+			"Range": 1
 		}
 	}
-	dict.ammo = {}
-	dict.ammo.rank = {
+	dict["Ammo"] = {}
+	dict["Ammo"].size = 6
+	dict["Ammo"].rank = {
 		"0": ["Basic"],
 		"1": ["Splasher","Piercer"],
 		"2": ["Blader","Waver","Blaster"]
 	}
-	dict.ammo.description = {
+	dict["Ammo"].description = {
 		"Basic": {
 			"Alpha Part": 1,
 			"Beta Part": 0,
@@ -218,8 +238,8 @@ func init_arr():
 func init_node():
 	node.TimeBar = get_node("/root/Game/TimeBar") 
 	node.Game = get_node("/root/Game") 
-	node.BastionLevel = get_node("/root/Game/BastionLevel") 
-	node.BastionCharge = get_node("/root/Game/BastionCharge") 
+	node.HexLabels = get_node("/root/Game/HexLabels") 
+	node.BastionLevels = get_node("/root/Game/BastionLevels") 
 
 func init_flag():
 	flag.click = false
@@ -249,6 +269,12 @@ func init_window_size():
 	vec.window_size.height = ProjectSettings.get_setting("display/window/size/height")
 	vec.window_size.center = Vector2(vec.window_size.width/2, vec.window_size.height/2)
 
+func init_font():
+	font.chunkfive = DynamicFont.new()
+	font.chunkfive.font_data = load("res://assets/Marlboro.ttf")
+	font.chunkfive.size = 16
+	font.chunkfive.outline_color = Color(1,1,1)
+
 func _ready():
 	init_num()
 	init_arr()
@@ -256,6 +282,7 @@ func _ready():
 	init_node()
 	init_flag()
 	init_vec()
+	init_font()
 
 func save_json(data_,file_path_,file_name_):
 	var file = File.new()
@@ -309,4 +336,25 @@ func calc_sphenic_numbers():
 	#save_json(values,file_path,file_name)
 	#rint(values)
 	dict.sphenic_number.full = values
+
+func get_experience(obj_,experience_):
+	obj_.num.experience.current += experience_
 	
+	if obj_.num.experience.current >= obj_.num.experience.max:
+		rise_level(obj_)
+
+func rise_level(obj_):
+	obj_.num.level.current += 1
+	var experience_classes = ["Ammo","Cannon","Bastion","Card"]
+	
+	if experience_classes.has(obj_.word.class):
+		obj_.num.experience.current -= obj_.num.experience.max
+		obj_.num.experience.max = pow(obj_.num.level.current+1,2)
+	
+	match obj_.word.class:
+		"Hex":
+			obj_.num.hp.max = pow((obj_.num.level.base+obj_.num.level.current),obj_.num.level.degree)
+			obj_.num.hp.current = obj_.num.hp.max
+	#obj_.num.factor = float(pow((Global.num.factor.base[obj_.word.class]+num.level.current),Global.num.factor.degree.cannon))/Global.num.factor.norm.cannon
+	#print(num.factor)
+

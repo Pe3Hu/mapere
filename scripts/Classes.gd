@@ -2,21 +2,36 @@ extends Node
 
 
 class Dot:
+	var word = {}
 	var num = {}
 	var vec = {}
 	var arr = {}
 	var flag = {}
 	var color = {}
-	
+
 	func _init(input_):
+		word.class = "Dot"
 		num.index = Global.num.primary_key.dot
 		Global.num.primary_key.dot += 1
 		vec.grid = input_.grid
 		vec.pos = input_.pos
 		flag.visiable = false
-		color.current = Color(0.0, 0.0, 0.0)
+		color.background = Color(0.0, 0.0, 0.0)
+
+class Effect:
+	var word = {}
+	var num = {}
+	var obj = {}
+
+	func _init(input_):
+		word.class = "Effect"
+		word.type = input_.type
+		num.value = input_.value
+		obj.hex = input_.hex
+		obj.bastion = input_.bastion
 
 class Hex:
+	var word = {}
 	var num = {}
 	var vec = {}
 	var arr = {}
@@ -24,8 +39,10 @@ class Hex:
 	var flag = {}
 	var color = {}
 	var obj = {}
+	var node = {}
 
 	func _init(input_):
+		word.class = "Hex"
 		num.index = Global.num.primary_key.hex
 		Global.num.primary_key.hex += 1
 		vec.grid = input_.grid
@@ -38,7 +55,7 @@ class Hex:
 		num.level.current = 0
 		num.level.base = 9
 		num.level.degree = 2
-		rise_level()
+		Global.rise_level(self)
 		arr.dot = input_.dots
 		arr.point = []
 		arr.neighbor = []
@@ -49,6 +66,7 @@ class Hex:
 		obj.map = input_.map
 		obj.bastion = null
 		recolor("Default")
+		init_nodes()
 		
 		for dot in arr.dot:
 			arr.point.append(dot.vec.pos)
@@ -56,6 +74,12 @@ class Hex:
 		
 		for _i in Global.num.map.neighbors:
 			dict.direction[_i] = null
+
+	func init_nodes():
+		node.label = Label.new()
+		node.label.set("custom_fonts/font", Global.font.chunkfive)
+		updated_label_text()
+		Global.node.HexLabels.add_child(node.label)
 
 	func contribute_damage(bastion_, value_):
 		if bastion_ != obj.bastion:
@@ -86,8 +110,8 @@ class Hex:
 			conqueror_.value = 0
 		
 		if num.hp.current <= 0:
-			conqueror_.bastion.get_experience(num.level.current)
-			rise_level()
+			Global.get_experience(conqueror_.bastion,num.level.current)
+			Global.rise_level(self)
 			
 			if obj.bastion != null:
 				if flag.capital:
@@ -102,13 +126,15 @@ class Hex:
 			recolor("Bastions")
 		else:
 			recolor("Hp")
-		
+			
+		updated_label_text()
 		#return conqueror_.value
 
 	func get_heal(value_):
 		var heal = min(num.hp.max-num.hp.current,value_)
 		num.hp.current += heal
 		value_ -= heal
+		updated_label_text()
 		return value_
 
 	func recolor(layer_):
@@ -119,30 +145,35 @@ class Hex:
 		
 		match layer_:
 			"Default":
-				color.current = Color().from_hsv(0.0, 0.0, 1)
+				color.background = Color().from_hsv(0.0, 0.0, 1)
 			"Sectors":
 				h = float(num.sector)/Global.num.map.sectors
-				color.current = Color.from_hsv(h, 1.0, 1.0)  
+				color.background = Color.from_hsv(h, 1.0, 1.0)  
 			"Bastions":
 				h = float(obj.bastion.num.index)/Global.num.primary_key.bastion
-				color.current = Color.from_hsv(h, 1.0, 1.0)  
+				color.background = Color.from_hsv(h, 1.0, 1.0)  
 			"Hp":
 				var v = float(num.hp.current)/num.hp.max
-				color.current = Color().from_hsv(0.0, 0.0, v)
+				color.background = Color().from_hsv(0.0, 0.0, v)
 				
 				if obj.bastion != null:
 					if obj.bastion.num.index != -1:
 						h = float(obj.bastion.num.index)/Global.num.primary_key.bastion
-						color.current = Color().from_hsv(h, 1.0, v)
+						color.background = Color().from_hsv(h, 1.0, v)
 
 	func reset():
 		obj.bastion = null
 		recolor("Default")
 
-	func rise_level():
-		num.level.current += 1
-		num.hp.max = pow((num.level.base+num.level.current),num.level.degree)
-		num.hp.current = num.hp.max
+	func updated_label_text():
+		var v = float(num.hp.current)/num.hp.max+0.5
+		
+		if v > 1:
+			v -= 1
+		
+		color.label = Color().from_hsv(0.0, 0.0, v)
+		var hp = float(num.hp.current)/num.hp.max*100
+		word.label = str(hp)
 
 class Card:
 	var num = {}
@@ -152,6 +183,7 @@ class Card:
 	func _init(input_):
 		word.type = input_.type
 		word.element = "None"
+		word.class = "Card"
 		num.denomination = input_.denomination
 		obj.bastion = input_.deck
 		num.level = {}
@@ -170,18 +202,10 @@ class Card:
 					obj.bastion.launch_charge()
 			"Blank":
 				obj.bastion.num.fuel += num.denomination
-
-#	func get_experience(experience_):
-#		num.experience.current += experience_
-#
-#		if num.experience.current >= num.experience.max:
-#			rise_level()
-#
-#	func rise_level():
-#		num.level.current += 1
-#		num.experience.current -= num.experience.max
-#		num.experience.max = num.level.current+1
-		pass
+				
+				if word.element != "None":
+					for _i in num.denomination:
+						obj.bastion.arr.element.append(word.element)
 
 	func upgrade():
 		var types = ["Denomination","Shift","Element"]
@@ -230,54 +254,65 @@ class Card:
 				word.type = options[index_r]
 
 class Cannon:
-	var num = {}
 	var word = {}
+	var num = {}
 	var obj = {}
 
 	func _init(input_):
+		word.type = input_.type
+		word.class = "Cannon"
 		num.rank = input_.rank
 		num.level = {}
 		num.level.current = 0
-		word.type = input_.type
+		num.factor = 1
 		obj.owner = input_.owner
 
 	func upgrade_rank():
-		if num.rank < Global.dict.cannon.rank.keys().size()-1:
+		if num.rank < Global.dict[word.class].rank.keys().size()-1:
 			num.rank += 1
 			
 			Global.rng.randomize()
-			var index_r = Global.rng.randi_range(0, Global.dict.cannon.rank[str(num.rank)].size() - 1)
+			var index_r = Global.rng.randi_range(0, Global.dict[word.class].rank[str(num.rank)].size() - 1)
 			
-			word.type = Global.dict.cannon.rank[str(num.rank)][index_r]
+			word.type = Global.dict[word.class].rank[str(num.rank)][index_r]
 			print(word.type)
 		else:
 			print("OverExpCannon")
 
 class Ammo:
-	var num = {}
 	var word = {}
+	var num = {}
 	var obj = {}
 
 	func _init(input_):
+		word.class = "Ammo"
 		num.rank = input_.rank
 		num.level = {}
 		num.level.current = 0
+		num.factor = 1
 		word.type = input_.type
 		obj.owner = input_.owner
 
-	func detonation(hex_, charge_,direction_index_):
-		var description = Global.dict.ammo.description[word.type]
-		var charge = float(charge_)/Global.dict.cannon.description[obj.owner.obj.cannon.word.type]["Directions"].size()
+	func detonation(data_):
+		var description = Global.dict[word.class].description[word.type]
+		var charge = float(obj.owner.num.charge)/Global.dict["Cannon"].description[obj.owner.arr.cannon.front().word.type]["Directions"].size()
+		
+		match obj.owner.arr.cannon.front().word.type:
+			"Beamer":
+				charge /= data_.hexs.size()
+			"Artillery":
+				charge /= data_.hexs.size()
+		
 		var targets = []
 		var target = {}
-		target.hex = hex_
+		target.hex = data_.hex
 		target.charge = description["Alpha Part"]*charge
 		targets.append(target)
 		obj.owner.update_borderlands()
-		
+
 		for index in description["Directions"]:
-			var hexs = [hex_]
-			var current_index = (direction_index_+index)%Global.num.map.neighbors
+			var hexs = [data_.hex]
+			var current_index = (data_.direction_index+index)%Global.num.map.neighbors
 			
 			if target.hex.flag.visiable:
 				for _j in description["Range"]:
@@ -314,12 +349,14 @@ class Ammo:
 		num.rank += 1
 		
 		Global.rng.randomize()
-		var index_r = Global.rng.randi_range(0, Global.dict.ammo.rank[str(num.rank)].size() - 1)
+		var index_r = Global.rng.randi_range(0, Global.dict[word.class].rank[str(num.rank)].size() - 1)
 		
-		word.type = Global.dict.ammo.rank[str(num.rank)][index_r]
+		word.type = Global.dict[word.class].rank[str(num.rank)][index_r]
 		print(word.type)
 
+
 class Bastion:
+	var word = {}
 	var num = {}
 	var arr = {}
 	var flag = {}
@@ -327,6 +364,7 @@ class Bastion:
 	var node = {}
 
 	func _init(input_):
+		word.class = "Bastion"
 		num.index = Global.num.primary_key.bastion
 		Global.num.primary_key.bastion += 1
 		obj.capital = input_.hex
@@ -334,7 +372,16 @@ class Bastion:
 		obj.capital.flag.capital = true
 		obj.map = obj.capital.obj.map
 		arr.hex = [obj.capital]
+		arr.element = []
+		init_nums()
+		init_nodes()
+		init_deck()
+		init_cannons()
+		init_ammos()
+
+	func init_nums():
 		num.fuel = 0
+		num.charge = 0
 		num.refill = {}
 		num.refill.card = Global.num.deck.refill
 		num.experience = {}
@@ -342,28 +389,13 @@ class Bastion:
 		num.experience.max = 1
 		num.level = {}
 		num.level.current = 0
+		num.factor = 1
 		num.element = num.index*Global.arr.element.size()/Global.num.primary_key.bastion
-		init_nodes()
-		init_deck()
-		init_cannon()
 
 	func init_nodes():
 		node.level = Label.new()
-		node.level.set("custom_fonts/font", load("res://assets/ELEPHNT.TTF"))
-		node.level.set("custom_colors/font_color", Color(1,1,1))
-		node.level.text = str(num.index)
-		Global.node.BastionLevel.add_child(node.level)
-		
-		node.charge = Label.new()
-		node.charge.set("custom_fonts/font", load("res://assets/ELEPHNT.TTF"))
-		node.charge.set("custom_colors/font_color", Color(1,1,1))
-		node.charge.text = "# "+str(num.index)
-		
-		if num.index < 10:
-			node.charge.text += " "
-		
-		node.charge.text += ": " + str(num.fuel)
-		Global.node.BastionCharge.add_child(node.charge)
+		node.level.set("custom_fonts/font", Global.font.chunkfive)
+		Global.node.BastionLevels.add_child(node.level)
 
 	func init_deck():
 		arr.deck = []
@@ -386,19 +418,19 @@ class Bastion:
 		
 		arr.deck.shuffle()
 
-	func init_cannon():
+	func init_cannons():
+		arr.cannon = []
 		var input = {}
 		input.owner = self
-		input.type = "Rounder"#Singler Rounder Faner
+		input.type = "Singler"#Singler Rounder Faner Beamer Artillery
 		input.rank = 0
-		obj.cannon = Classes.Cannon.new(input)
-		
-		init_ammos()
+		var cannon = Classes.Cannon.new(input)
+		arr.cannon.append(cannon)
 
 	func init_ammos():
 		arr.ammo = []
 		
-		for _i in Global.num.ammo.size:
+		for _i in Global.dict["Ammo"].size:
 			var input = {}
 			input.owner = self
 			input.type = "Basic"# Basic Piercer Splasher Blader Blaster Waver
@@ -435,56 +467,154 @@ class Bastion:
 		Global.rng.randomize()
 		var direction_index = Global.rng.randi_range(0, Global.num.map.neighbors-1) 
 		
-		for index in 1:#Global.dict.cannon.description[obj.cannon.word.type]["Directions"]:
-			var sub_index = (direction_index+index)%Global.num.map.neighbors
-			#print(self,sub_index)
-			sub_launch(sub_index)
+		if  Global.dict["Cannon"].description[arr.cannon.front().word.type]["Standart"]:
+			for index in Global.dict["Cannon"].description[arr.cannon.front().word.type]["Directions"]:
+				var sub_index = (direction_index+index)%Global.num.map.neighbors
+				#pint(sub_index,self,num.charge)
+				sub_launch(sub_index)
+		else:
+			load_basic_ammo()
+			
+			match arr.cannon.front().word.type:
+				"Beamer":
+					launch_beamer(direction_index)
+				"Artillery":
+					launch_artillery(direction_index)
+		
+		next_ammo()
+		num.fuel = 0
+		num.charge = 0
+		arr.element = []
+
+	func launch_beamer(direction_index_):
+		var data = {}
+		data.hexs = [obj.capital]
+		data.direction_index = direction_index_
+		
+		for  _i in Global.dict["Cannon"].description[arr.cannon.front().word.type]["Range"]:
+			if data.hexs.back().dict.direction[direction_index_].flag.visiable:
+				data.hexs.append(data.hexs.back().dict.direction[direction_index_])
+			else:
+				break
+		
+		data.hexs.pop_front()
+		
+		for hex in data.hexs:
+			data.hex = hex
+			arr.ammo.front().detonation(data)
+
+	func launch_artillery(direction_index_):
+		update_borderlands()
+		var data = {}
+		data.hexs = [obj.capital]
+		data.direction_index = direction_index_
+		var options = []
+		var min_d = Global.num.map.rings * 2
+		var max_d = 0
+		
+		while !arr.borderland.has(data.hexs.back()) && data.hexs.back().dict.direction[direction_index_] != null:
+			data.hexs.append(data.hexs.back().dict.direction[direction_index_])
+		
+		for borderland in arr.borderland:
+			for neighbor in borderland.arr.neighbor:
+				if !arr.borderland.has(neighbor) && !arr.hex.has(neighbor):
+					var option = {}
+					option.hex = neighbor
+					option.direction_d = data.hexs.back().vec.grid.distance_to(neighbor.vec.grid)
+					option.capital_d = data.hexs.front().vec.grid.distance_to(neighbor.vec.grid)
+					options.append(option)
+					
+					if min_d > option.capital_d:
+						min_d = option.capital_d
+					if max_d < option.direction_d:
+						max_d = option.direction_d
+		
+		for _i in options.size():
+			var option = options[_i]
+			
+			for _j in (max_d-option.direction_d)+(option.capital_d-min_d):
+				options.append(option)
+		
+		Global.rng.randomize()
+		var index_r = Global.rng.randi_range(0, options.size()-1)
+		var arounds = obj.map.get_hexs_around_hex(options[index_r].hex,Global.dict["Cannon"].description[arr.cannon.front().word.type]["Range"])
+		data.hexs = []
+		
+		for around in arounds:
+			for hex in around:
+				if hex.flag.visiable:
+					data.hexs.append(hex)
+		
+		for hex in data.hexs:
+			data.hex = hex
+			arr.ammo.front().detonation(data)
+
+	func load_basic_ammo():
+		while arr.ammo.front().word.type != "Basic":
+			next_ammo()
 
 	func sub_launch(sub_index_):
-		var direction_index = sub_index_
-		var current_hex = obj.capital
+		var data = {}
+		data.hexs = [obj.capital]
+		data.direction_index = sub_index_
 		var type = ""
 		#pls fix this bug 1
 		var counter = 0
+		var finish = false
 		
-		while num.charge > 0 && counter < 100:
+		while !finish && counter < 100:
 			counter += 1
-			#print(self,current_hex)
 			
-			if current_hex.obj.bastion == null:
+			if data.hexs.back().obj.bastion == null:
 				type = "Damage"
 			else:
-				if current_hex.obj.bastion.num.index == num.index:
+				if data.hexs.back().obj.bastion.num.index == num.index:
 					type = "Move"
-					
-					if current_hex.num.hp.current != current_hex.num.hp.max:
-						if !current_hex.flag.capital:
-							type = "Heal"
 				else:
 					type = "Damage"
 			
 			match type:
 				"Move":
-					direction_index = get_deviation(current_hex,direction_index)
-					current_hex = current_hex.dict.direction[direction_index]
+					data.hexs.append(data.hexs.back().dict.direction[data.direction_index])
 					
-					if !current_hex.dict.direction[direction_index].flag.visiable:
-						direction_index = get_after_border_direction(current_hex, direction_index)
-						
-					#value -= 1
-				"Heal":
-					current_hex.get_heal(num.charge)
+					if !data.hexs.back().dict.direction[data.direction_index].flag.visiable:
+						data.direction_index = get_after_border_direction(data.hexs.back(), data.direction_index)
+					
+					data.direction_index = get_deviation(data)
 				"Damage":
-					arr.ammo.front().detonation(current_hex,num.charge,direction_index)
-					next_ammo()
+					data.hex = data.hexs.back()
+					arr.ammo.front().detonation(data)
+					activate_effect(data)
+					finish = true
 
-		num.fuel = 0
-		num.charge = 0
+	func activate_effect(data_):
+		if arr.element.size() > 0:
+			Global.rng.randomize()
+			var index_r = Global.rng.randi_range(0, arr.element.size()-1)
+			var element = arr.element[index_r]
+			
+			match element:
+				"Earth":
+					var targets = [data_.hexs[0]]
+					
+					for hex in data_.hexs:
+						if arr.hex.has(hex):
+							targets = [hex]
+					
+					for neighbor in targets.front().arr.neighbor:
+						if arr.hex.has(neighbor):
+							targets.append(neighbor)
+					
+					for target in targets:
+						var input = {}
+						input.type = "Barricade"
+						input.charge = sqrt(float(num.charge)/Global.dict["Cannon"].description[arr.cannon.front().word.type]["Directions"].size())
+						input.hex = target
+						input.bastion = self
 
 	func next_ammo():
 		var ammo = arr.ammo.pop_front()
 		arr.ammo.append(ammo)
-		num.charge = 0
 
 	func check_charge_value():
 		var min_value = Global.dict.sphenic_number.keys[0]
@@ -600,18 +730,18 @@ class Bastion:
 			var hex = ordered.pop_front()
 			hex.contribute_damage(self, value)
 
-	func get_deviation(hex_,old_index_):
+	func get_deviation(data_):
 		var options = []
 		var copy = 2
 		
 		for _i in range(-1,1,1):
-			var index = (old_index_+_i+Global.num.map.neighbors)%Global.num.map.neighbors
+			var index = (data_.direction_index+_i+Global.num.map.neighbors)%Global.num.map.neighbors
 			
-			if hex_.dict.direction[index] != null:
-				if hex_.dict.direction[index].flag.visiable:
+			if data_.hexs.back().dict.direction[index] != null:
+				if data_.hexs.back().dict.direction[index].flag.visiable:
 					options.append(index)
 				
-					if index == old_index_:
+					if index == data_.direction_index:
 						for _j in copy:
 							options.append(index)
 				
@@ -661,19 +791,6 @@ class Bastion:
 			unconnected.reset()
 			arr.hex.erase(unconnected)
 
-	func get_experience(experience_):
-		num.experience.current += experience_
-		
-		if num.experience.current >= num.experience.max:
-			rise_level()
-
-	func rise_level():
-		num.experience.current -= num.experience.max
-		num.level.current += 1
-		num.experience.max = pow(num.level.current+1,2)
-		
-		choose_upgrade()
-
 	func choose_upgrade():
 		if arr.discard.size() > 0:
 			var card = null
@@ -692,13 +809,13 @@ class Bastion:
 		if num.level.current%12 == 0:
 			upgrade_ammo()
 		if num.level.current%12 == 0:
-			obj.cannon.upgrade_rank()
+			arr.cannon.front().upgrade_rank()
 
 	func upgrade_ammo():
 		var options = []
 		
 		for ammo in arr.ammo:
-			for _i in pow(Global.dict.ammo.rank.keys().size()-1-ammo.num.rank,2):
+			for _i in pow(Global.dict["Ammo"].rank.keys().size()-1-ammo.num.rank,2):
 				options.append(ammo)
 		
 		Global.rng.randomize()
@@ -711,24 +828,20 @@ class Bastion:
 		for hex in arr.hex:
 			hex.reset()
 		
-		for child in Global.node.BastionLevel.get_children():
+		for child in Global.node.BastionLevels.get_children():
 			if child == node.level: 
 				child.queue_free()
 				
-		for child in Global.node.BastionCharge.get_children():
-			if child == node.charge: 
-				child.queue_free()
-		#node.level.get_children().queue_free()
-		#node.charge.get_children().queue_free()
-		#Global.node.BastionLevel.remove_child(node.level)
-		#Global.node.BastionCharge.remove_child(node.charge)
+		
 		Global.obj.map.arr.bastion.erase(self)
 
 class Map:
+	var word = {}
 	var arr = {}
 	var flag = {}
 
 	func _init():
+		word.class = "Map"
 		arr.dot = []
 		arr.hex = []
 		arr.bastion = []
@@ -737,7 +850,7 @@ class Map:
 		init_dots()
 		init_hexs()
 		init_neighbors()
-		around_center()
+		set_visiable_around_center()
 		init_sectors()
 		init_bastions()
 		flag.ready = true
@@ -823,23 +936,31 @@ class Map:
 							hex.dict.direction[index] = neighbor_hex
 							neighbor_hex.dict.direction[reflected_index] = hex
 
-	func around_center():
-		var center = arr.hex[arr.hex.size()/2][arr.hex.size()/2]
-		var arounds = [[center]]
-		center.num.ring = 0
-		center.flag.visiable = true
+	func get_hexs_around_hex(hex_,rings_):
+		var arounds = [[hex_]]
+		var totals = [hex_]
 		
-		for _i in Global.num.map.rings-2:
+		for _i in rings_:
 			var next_ring = []
 			
 			for _j in range(arounds[_i].size()-1,-1,-1):
 				for neighbor in arounds[_i][_j].arr.neighbor:
-					if neighbor.num.ring == -1:
+					if !totals.has(neighbor):
 						next_ring.append(neighbor)
-						neighbor.num.ring = _i+1
-						neighbor.flag.visiable = true
+						totals.append(neighbor)
 			
 			arounds.append(next_ring)
+		
+		return arounds
+
+	func set_visiable_around_center():
+		var center = arr.hex[arr.hex.size()/2][arr.hex.size()/2]
+		var arounds = get_hexs_around_hex(center,Global.num.map.rings-2)
+		
+		for _i in arounds.size():
+			for hex in arounds[_i]:
+				hex.num.ring = _i
+				hex.flag.visiable = true
 
 	func init_sectors():
 		var hex_counters = []
